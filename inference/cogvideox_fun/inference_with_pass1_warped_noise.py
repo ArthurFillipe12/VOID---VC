@@ -42,6 +42,7 @@ from videox_fun.models import (AutoencoderKLCogVideoX, CogVideoXTransformer3DMod
                                 T5EncoderModel, T5Tokenizer)
 from videox_fun.pipeline import CogVideoXFunInpaintPipeline
 from videox_fun.utils.utils import get_video_mask_input
+from videox_fun.utils.temporal_metrics import compute_temporal_metrics, save_temporal_metrics_json
 from diffusers import CogVideoXDDIMScheduler
 
 
@@ -264,6 +265,26 @@ def main():
     parser.add_argument("--use_quadmask", action="store_true", default=True,
                        help="Use quadmask format")
 
+    # Temporal evaluation (optional)
+    parser.add_argument("--eval_temporal", action="store_true",
+                       help="Enable temporal quality evaluation and save JSON sidecar.")
+    parser.add_argument("--disable_temporal_lpips", action="store_true",
+                       help="Disable temporal LPIPS metric.")
+    parser.add_argument("--disable_temporal_flow", action="store_true",
+                       help="Disable optical-flow consistency metric.")
+    parser.add_argument("--temporal_lpips_net", type=str, default="alex",
+                       help="LPIPS backbone: alex, vgg, or squeeze")
+    parser.add_argument("--temporal_flow_model", type=str, default="raft_small",
+                       help="Flow model for temporal consistency: raft_small or raft_large")
+    parser.add_argument("--temporal_eval_max_frames", type=int, default=65,
+                       help="Maximum frames used for temporal evaluation")
+    parser.add_argument("--temporal_eval_size", type=int, default=256,
+                       help="Short-side resize used for temporal evaluation (<=0 disables)")
+    parser.add_argument("--temporal_fb_alpha", type=float, default=0.01,
+                       help="Forward-backward flow consistency alpha threshold")
+    parser.add_argument("--temporal_fb_beta", type=float, default=0.5,
+                       help="Forward-backward flow consistency beta threshold")
+
     args = parser.parse_args()
 
     # Determine video list
@@ -437,6 +458,28 @@ def main():
             output_path = Path(args.output_dir) / f"{video_name}_warped_noise_inference.mp4"
             imageio.mimsave(output_path, video_np, fps=12, codec='libx264',
                            quality=8, pixelformat='yuv420p')
+
+            if args.eval_temporal:
+                logger.info("  [f] Running temporal evaluation...")
+                metrics = {
+                    "sequence": video_name,
+                    "mode": "pass2",
+                    "fps": 12,
+                    "metrics": compute_temporal_metrics(
+                        output[0],
+                        enable_lpips=not args.disable_temporal_lpips,
+                        enable_flow=not args.disable_temporal_flow,
+                        lpips_net=args.temporal_lpips_net,
+                        flow_model=args.temporal_flow_model,
+                        max_frames=args.temporal_eval_max_frames,
+                        eval_size=args.temporal_eval_size,
+                        fb_alpha=args.temporal_fb_alpha,
+                        fb_beta=args.temporal_fb_beta,
+                    ),
+                }
+                metrics_path = output_path.with_name(output_path.stem + "_metrics.json")
+                save_temporal_metrics_json(metrics, str(metrics_path))
+                logger.info(f"  ✓ Metrics saved: {metrics_path}")
 
             logger.info(f"  ✓ Success: {output_path}")
             succeeded += 1

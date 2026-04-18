@@ -30,6 +30,7 @@ from videox_fun.pipeline import (CogVideoXFunPipeline,
 from videox_fun.utils.lora_utils import merge_lora, unmerge_lora, create_network
 from videox_fun.utils.fp8_optimization import convert_weight_dtype_wrapper
 from videox_fun.utils.utils import get_video_mask_input, save_videos_grid, save_inout_row, get_video_mask_validation
+from videox_fun.utils.temporal_metrics import compute_temporal_metrics, save_temporal_metrics_json
 from videox_fun.dist import set_multi_gpus_devices
 
 if __name__ == "__main__":
@@ -37,6 +38,15 @@ if __name__ == "__main__":
     config_flags.DEFINE_config_file(
         "config", "config/quadmask_cogvideox.py", "Path to the python config file"
     )
+    flags.DEFINE_bool("eval_temporal", False, "Enable temporal quality evaluation and save JSON metrics sidecar.")
+    flags.DEFINE_bool("temporal_eval_lpips", True, "Enable temporal LPIPS metric when lpips package is available.")
+    flags.DEFINE_bool("temporal_eval_flow", True, "Enable optical-flow consistency metric using torchvision RAFT.")
+    flags.DEFINE_string("temporal_lpips_net", "alex", "LPIPS backbone: alex, vgg, or squeeze.")
+    flags.DEFINE_string("temporal_flow_model", "raft_small", "Optical-flow model: raft_small or raft_large.")
+    flags.DEFINE_integer("temporal_eval_max_frames", 65, "Maximum frames used for temporal evaluation.")
+    flags.DEFINE_integer("temporal_eval_size", 256, "Short-side resize used for temporal evaluation (<=0 disables).")
+    flags.DEFINE_float("temporal_fb_alpha", 0.01, "Forward-backward flow consistency alpha threshold.")
+    flags.DEFINE_float("temporal_fb_beta", 0.5, "Forward-backward flow consistency beta threshold.")
 
 def load_pipeline(config):
     model_name = config.video_model.model_name
@@ -248,6 +258,29 @@ def run_inference(config, pipeline, vae, generator, input_video_name, keep_fg_id
         video_path = os.path.join(config.experiment.save_path, prefix + ".mp4")
         save_videos_grid(sample, video_path, fps=config.data.fps)
         save_inout_row(input_video, input_video_mask, sample, video_path[:-4] + "_tuple.mp4", fps=config.data.fps)
+
+        if FLAGS.eval_temporal:
+            logger.info(f"Running temporal evaluation for {prefix}...")
+            metrics = {
+                "sequence": input_video_name,
+                "prefix": prefix,
+                "mode": "pass1",
+                "fps": int(config.data.fps),
+                "metrics": compute_temporal_metrics(
+                    sample[0],
+                    enable_lpips=FLAGS.temporal_eval_lpips,
+                    enable_flow=FLAGS.temporal_eval_flow,
+                    lpips_net=FLAGS.temporal_lpips_net,
+                    flow_model=FLAGS.temporal_flow_model,
+                    max_frames=FLAGS.temporal_eval_max_frames,
+                    eval_size=FLAGS.temporal_eval_size,
+                    fb_alpha=FLAGS.temporal_fb_alpha,
+                    fb_beta=FLAGS.temporal_fb_beta,
+                ),
+            }
+            metrics_path = video_path[:-4] + "_metrics.json"
+            save_temporal_metrics_json(metrics, metrics_path)
+            logger.info(f"Saved temporal metrics: {metrics_path}")
 
 
 def main(_):
