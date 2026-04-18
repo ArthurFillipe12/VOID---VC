@@ -24,6 +24,7 @@ imageio-ffmpeg==0.6.0
 mediapy==1.2.4
 decord==0.6.0
 kornia==0.8.1
+lpips==0.1.4
 albumentations==2.0.8
 timm==1.0.19
 tomesd==0.1.3
