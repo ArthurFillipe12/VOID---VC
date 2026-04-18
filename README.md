@@ -272,6 +272,20 @@ Key config options:
 
 The output is saved as `<save_path>/<sequence_name>.mp4`, along with a `*_tuple.mp4` side-by-side comparison.
 
+Optional: automatic temporal evaluation (LPIPS temporal + flow consistency):
+
+```bash
+python inference/cogvideox_fun/predict_v2v.py \
+    --config config/quadmask_cogvideox.py \
+    --eval_temporal \
+    --temporal_eval_lpips \
+    --temporal_eval_flow \
+    --temporal_eval_max_frames=65 \
+    --temporal_eval_size=256
+```
+
+This writes a sidecar file `<output_video>_metrics.json` next to each generated `.mp4`.
+
 ### 🔁 Pass 2 — Warped noise refinement
 
 Uses optical flow-warped latents from the Pass 1 output to initialize a second inference pass, improving temporal consistency.
@@ -305,6 +319,21 @@ Key arguments:
 | `--guidance_scale` | `6.0` | CFG scale |
 | `--num_inference_steps` | `50` | Denoising steps |
 | `--use_quadmask` | `True` | Use quadmask conditioning |
+
+Optional temporal evaluation flags for Pass 2:
+
+```bash
+python inference/cogvideox_fun/inference_with_pass1_warped_noise.py \
+    --video_name my-video \
+    --data_rootdir path/to/data_rootdir \
+    --pass1_dir path/to/pass1_outputs \
+    --output_dir path/to/pass2_outputs \
+    --model_checkpoint path/to/void_pass2.safetensors \
+    --model_name path/to/CogVideoX-Fun-V1.5-5b-InP \
+    --eval_temporal
+```
+
+This writes `<video_name>_warped_noise_inference_metrics.json` beside the Pass 2 video.
 
 </details>
 
