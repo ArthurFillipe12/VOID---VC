@@ -1,4 +1,4 @@
-# VOID---VC
+# Projeto VOID---VC
 
 Projeto acadêmico de Visão Computacional baseado no artigo **VOID: Video Object and Interaction Deletion** (Netflix Research), com foco em **melhoria de implementação**.
 
