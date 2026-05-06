@@ -1,60 +1,61 @@
 # Projeto VOID---VC
 
-Projeto acadêmico de Visão Computacional baseado no artigo **VOID: Video Object and Interaction Deletion** (Netflix Research), com foco em **melhoria de implementação**.
+Projeto acadêmico da disciplina de Visão Computacional (UFRPE) baseado no framework VOID (Netflix Research), com foco em uma melhoria de implementação para avaliação temporal automática.
 
-## Objetivo do projeto
+## Escopo da melhoria
 
-Implementar e validar um módulo de **avaliação temporal automática** para o framework VOID, reduzindo a dependência de avaliação apenas visual/subjetiva.
+Foi implementado um módulo de métricas temporais para reduzir dependência de avaliação exclusivamente visual/subjetiva na remoção de objetos em vídeo.
 
-Métricas implementadas:
-- LPIPS temporal (frame a frame)
-- Optical Flow Consistency (erro de warp com RAFT)
+Métricas calculadas por pares consecutivos de frames:
+- LPIPS temporal
+- Optical Flow Consistency (L1)
 - PSNR consecutivo
 - SSIM consecutivo
 
-Saídas produzidas:
-- JSON com resumo agregado
+Saídas geradas:
+- JSON com série temporal e resumo agregado
 - CSV com métricas por par de frames
 
 ## Estrutura do repositório
 
-- `notebooks/`: notebooks usados no projeto
-- `docs/`: documentação textual de proposta, metodologia, resultados e limitações
-- `article/`: artigo em LaTeX no formato solicitado pela disciplina
-- `outputs/`: resultados exportados (JSON/CSV e imagens de apoio)
-- `videox_fun/utils/temporal_metrics.py`: módulo de métricas temporais
-- `tests/test_temporal_metrics.py`: teste unitário do módulo
+- `config/`: arquivos de configuração do pipeline
+- `docs/`: documentação textual do projeto
+- `inference/`: scripts de inferência
+- `notebooks/`: caderno base utilizado no ambiente Colab
+- `sample/`: vídeos de exemplo
+- `tests/test_temporal_metrics.py`: teste unitário da melhoria
+- `videox_fun/utils/temporal_metrics.py`: implementação do módulo temporal
+- `article/main.tex`: artigo final em LaTeX (formato IEEE)
 
-## Notebooks
+## Resultado de validação funcional
 
-- `notebooks/00_void_original.ipynb`: notebook original do repositório
-- `notebooks/01_void_framework_integration.ipynb`: execução e integração no VOID (inclui limitações de hardware)
-- `notebooks/02_temporal_metrics_validation.ipynb`: validação isolada e reproduzível do módulo de métricas
-
-## Resultados principais (validação do módulo)
-
-Execução em vídeo real de exemplo (`sample/lime/input_video.mp4`), 8 frames, 7 pares:
+Validação no clipe `sample/lime/input_video.mp4` com 8 frames (7 pares):
 
 - `lpips_temporal_mean`: `0.018937`
 - `optical_flow_consistency_l1_mean`: `0.005620`
 - `psnr_consecutive_mean`: `28.631974`
 - `ssim_consecutive_mean`: `0.925345`
 
-## Limitações encontradas
+## Limitação conhecida
 
-No Colab gratuito (Tesla T4 ~14.56 GB VRAM), a execução completa da inferência pesada do VOID pode falhar por memória (`exit code 137`).
+No Colab gratuito (Tesla T4, ~14.56 GB VRAM), a inferência completa do pipeline pode encerrar por memória (`exit code 137`).
 
-Mesmo com essa limitação, a melhoria proposta foi:
-- implementada no código
-- integrada aos scripts
-- validada funcionalmente com geração de artefatos quantitativos
+Essa limitação não impede a entrega da melhoria proposta, que foi implementada, integrada e validada funcionalmente.
 
-## Como reproduzir rapidamente
+## Reprodução rápida
 
-1. Clonar este repositório.
-2. Instalar dependências (`requirements.txt` + `lpips`).
-3. Executar `notebooks/02_temporal_metrics_validation.ipynb` para validação direta do módulo.
-4. Conferir arquivos gerados em `outputs/`.
+1. Clonar o repositório.
+2. Instalar dependências de `requirements.txt`.
+3. Executar o fluxo de validação no Colab.
+4. Conferir os artefatos JSON/CSV gerados.
+
+## Entrega da disciplina
+
+Para submissão, os itens essenciais deste repositório são:
+- Código da melhoria (`videox_fun/utils/temporal_metrics.py`)
+- Evidências de validação (`outputs/` quando disponível)
+- Documentação (`docs/`)
+- Artigo (`article/main.tex` e PDF final exportado)
 
 ## Referências
 
