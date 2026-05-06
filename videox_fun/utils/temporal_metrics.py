@@ -1,257 +1,295 @@
+import csv
 import json
-from pathlib import Path
-from typing import Dict, Optional
+import math
+import os
+from typing import Any, Dict, List, Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
+from loguru import logger
+from skimage.metrics import structural_similarity
+
+from videox_fun.utils.optical_flow_utils import RAFTFlowExtractor
 
 
-def _to_tchw(video: torch.Tensor) -> torch.Tensor:
-    """Converts video to [T, C, H, W] float tensor in [0, 1]."""
+def normalize_video_for_metrics(video: torch.Tensor, valid_frames: Optional[int] = None) -> torch.Tensor:
+    if video.ndim == 5:
+        video = video[0]
     if video.ndim != 4:
-        raise ValueError(f"Expected 4D video tensor, got shape {tuple(video.shape)}")
+        raise ValueError(f"Expected [B,C,T,H,W] or [C,T,H,W], got shape {tuple(video.shape)}")
 
-    # Prefer [T, C, H, W] when second dim is a valid channel count.
-    # Otherwise, treat as [C, T, H, W].
-    if video.shape[1] in (1, 3, 4):
-        pass
-    elif video.shape[0] in (1, 3, 4):
+    if video.shape[0] != 3 and video.shape[1] == 3:
         video = video.permute(1, 0, 2, 3)
-    else:
-        raise ValueError(f"Could not infer video layout from shape {tuple(video.shape)}")
+    if video.shape[0] != 3:
+        raise ValueError(f"Expected RGB channels, got shape {tuple(video.shape)}")
 
-    if video.shape[1] not in (1, 3, 4):
-        raise ValueError(f"Could not interpret channel dimension in shape {tuple(video.shape)}")
+    frames = video.detach().float().permute(1, 0, 2, 3).contiguous()
+    if valid_frames is not None:
+        frames = frames[:valid_frames]
 
-    if video.shape[1] > 3:
-        video = video[:, :3]
+    if frames.numel() == 0:
+        raise ValueError("Video has no frames after normalization")
 
-    video = video.float()
-    if video.min() < 0.0:
-        video = (video + 1.0) / 2.0
-    return video.clamp(0.0, 1.0)
+    if frames.max() > 1.5:
+        frames = frames / 255.0
+    elif frames.min() < 0.0:
+        frames = (frames + 1.0) / 2.0
 
-
-def _resize_video(video_tchw: torch.Tensor, eval_size: Optional[int]) -> torch.Tensor:
-    if eval_size is None or eval_size <= 0:
-        return video_tchw
-
-    _, _, h, w = video_tchw.shape
-    short_side = min(h, w)
-    if short_side <= eval_size:
-        return video_tchw
-
-    scale = eval_size / float(short_side)
-    target_h = max(8, int(round(h * scale / 8.0) * 8))
-    target_w = max(8, int(round(w * scale / 8.0) * 8))
-
-    return F.interpolate(video_tchw, size=(target_h, target_w), mode="bilinear", align_corners=False)
+    return frames.clamp(0.0, 1.0)
 
 
-def _sample_temporal(video_tchw: torch.Tensor, max_frames: Optional[int]) -> torch.Tensor:
-    if max_frames is None or max_frames <= 0 or video_tchw.shape[0] <= max_frames:
-        return video_tchw
-
-    indices = torch.linspace(0, video_tchw.shape[0] - 1, max_frames).long()
-    return video_tchw[indices]
+def _compute_psnr(frame1: np.ndarray, frame2: np.ndarray) -> float:
+    mse = float(np.mean((frame1 - frame2) ** 2))
+    mse = max(mse, 1e-10)
+    return float(10.0 * math.log10(1.0 / mse))
 
 
-def _warp_tensor(source: torch.Tensor, flow_xy: torch.Tensor) -> torch.Tensor:
-    """Warps source [B, C, H, W] using pixel-space flow [B, 2, H, W]."""
-    b, _, h, w = source.shape
-    yy, xx = torch.meshgrid(
-        torch.arange(h, device=source.device, dtype=source.dtype),
-        torch.arange(w, device=source.device, dtype=source.dtype),
-        indexing="ij",
+def _normalized_base_grid(height: int, width: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    y_coords = torch.linspace(-1.0, 1.0, steps=height, device=device, dtype=dtype)
+    x_coords = torch.linspace(-1.0, 1.0, steps=width, device=device, dtype=dtype)
+    grid_y, grid_x = torch.meshgrid(y_coords, x_coords, indexing="ij")
+    return torch.stack((grid_x, grid_y), dim=-1).unsqueeze(0)
+
+
+def backward_warp(frame: torch.Tensor, backward_flow: torch.Tensor) -> torch.Tensor:
+    _, _, height, width = frame.shape
+    base_grid = _normalized_base_grid(height, width, frame.device, frame.dtype)
+
+    flow_x = backward_flow[:, 0] * (2.0 / max(width - 1, 1))
+    flow_y = backward_flow[:, 1] * (2.0 / max(height - 1, 1))
+    flow_grid = torch.stack((flow_x, flow_y), dim=-1)
+    sample_grid = base_grid + flow_grid
+
+    return F.grid_sample(
+        frame,
+        sample_grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
     )
-    base_grid = torch.stack([xx, yy], dim=-1).unsqueeze(0).repeat(b, 1, 1, 1)
-    sample_grid = base_grid + flow_xy.permute(0, 2, 3, 1)
-
-    sample_grid[..., 0] = 2.0 * sample_grid[..., 0] / max(w - 1, 1) - 1.0
-    sample_grid[..., 1] = 2.0 * sample_grid[..., 1] / max(h - 1, 1) - 1.0
-
-    return F.grid_sample(source, sample_grid, mode="bilinear", padding_mode="border", align_corners=True)
 
 
-def _compute_lpips_temporal(
-    video_tchw: torch.Tensor,
-    device: torch.device,
-    lpips_net: str,
-) -> Dict[str, object]:
-    try:
-        import lpips  # type: ignore
-    except Exception as exc:  # pragma: no cover
-        return {
-            "available": False,
-            "error": f"lpips package unavailable: {exc}",
-        }
+def summarize_pair_metrics(pair_metrics: List[Dict[str, float]]) -> Dict[str, float]:
+    metric_names = [
+        "lpips_temporal",
+        "optical_flow_consistency_l1",
+        "psnr_consecutive",
+        "ssim_consecutive",
+    ]
+    summary: Dict[str, float] = {}
 
-    model = lpips.LPIPS(net=lpips_net).to(device).eval()
-    values = []
+    for metric_name in metric_names:
+        values = [float(pair[metric_name]) for pair in pair_metrics]
+        if not values:
+            continue
+        array = np.asarray(values, dtype=np.float64)
+        summary[f"{metric_name}_mean"] = float(array.mean())
+        summary[f"{metric_name}_std"] = float(array.std())
+        summary[f"{metric_name}_min"] = float(array.min())
+        summary[f"{metric_name}_max"] = float(array.max())
 
-    with torch.no_grad():
-        for t in range(video_tchw.shape[0] - 1):
-            x = (video_tchw[t : t + 1].to(device) * 2.0) - 1.0
-            y = (video_tchw[t + 1 : t + 2].to(device) * 2.0) - 1.0
-            d = model(x, y)
-            values.append(float(d.mean().item()))
-
-    if not values:
-        return {
-            "available": False,
-            "error": "Not enough frames for LPIPS temporal metric.",
-        }
-
-    return {
-        "available": True,
-        "mean": float(sum(values) / len(values)),
-        "per_pair": values,
-        "pairs": len(values),
-    }
+    summary["num_pairs"] = len(pair_metrics)
+    return summary
 
 
-def _compute_flow_consistency(
-    video_tchw: torch.Tensor,
-    device: torch.device,
-    flow_model: str,
-    fb_alpha: float,
-    fb_beta: float,
-) -> Dict[str, object]:
-    try:
-        from torchvision.models.optical_flow import (
-            Raft_Large_Weights,
-            Raft_Small_Weights,
-            raft_large,
-            raft_small,
+class TemporalMetricsEvaluator:
+    def __init__(
+        self,
+        device: Optional[str] = None,
+        lpips_model: Optional[torch.nn.Module] = None,
+        flow_extractor: Optional[RAFTFlowExtractor] = None,
+    ) -> None:
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self._lpips_model = lpips_model
+        self._flow_extractor = flow_extractor
+
+    def _get_lpips_model(self) -> torch.nn.Module:
+        if self._lpips_model is None:
+            import lpips
+
+            self._lpips_model = lpips.LPIPS(net="alex").to(self.device)
+            self._lpips_model.eval()
+        return self._lpips_model
+
+    def _get_flow_extractor(self) -> RAFTFlowExtractor:
+        if self._flow_extractor is None:
+            self._flow_extractor = RAFTFlowExtractor(device=self.device)
+        return self._flow_extractor
+
+    def _compute_pair_metrics(self, frame1: torch.Tensor, frame2: torch.Tensor) -> Dict[str, float]:
+        frame1_cpu = frame1.detach().cpu()
+        frame2_cpu = frame2.detach().cpu()
+        frame1_np = frame1_cpu.permute(1, 2, 0).numpy()
+        frame2_np = frame2_cpu.permute(1, 2, 0).numpy()
+
+        psnr = _compute_psnr(frame1_np, frame2_np)
+
+        min_hw = min(frame1_np.shape[0], frame1_np.shape[1])
+        win_size = min(7, min_hw)
+        if win_size % 2 == 0:
+            win_size -= 1
+        if win_size < 3:
+            win_size = 3
+
+        ssim = float(
+            structural_similarity(
+                frame1_np,
+                frame2_np,
+                channel_axis=2,
+                data_range=1.0,
+                win_size=win_size,
+            )
         )
-    except Exception as exc:  # pragma: no cover
+
+        lpips_model = self._get_lpips_model()
+        lpips_input_1 = frame1.unsqueeze(0).to(self.device) * 2.0 - 1.0
+        lpips_input_2 = frame2.unsqueeze(0).to(self.device) * 2.0 - 1.0
+        with torch.no_grad():
+            lpips_value = float(lpips_model(lpips_input_1, lpips_input_2).mean().item())
+
+        flow_extractor = self._get_flow_extractor()
+        flow_frame1 = frame1.unsqueeze(0).to(self.device)
+        flow_frame2 = frame2.unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            backward_flow = flow_extractor.extract_flow(flow_frame2, flow_frame1)
+            warped_frame1 = backward_warp(flow_frame1, backward_flow)
+            valid_mask = backward_warp(
+                torch.ones((1, 1, frame1.shape[1], frame1.shape[2]), device=self.device, dtype=flow_frame1.dtype),
+                backward_flow,
+            )
+
+        diff = torch.abs(warped_frame1 - flow_frame2)
+        valid_pixels = valid_mask > 0.5
+        if valid_pixels.any():
+            flow_consistency = float(diff.masked_select(valid_pixels.expand_as(diff)).mean().item())
+        else:
+            flow_consistency = float(diff.mean().item())
+
         return {
-            "available": False,
-            "error": f"Torchvision optical-flow models unavailable: {exc}",
+            "lpips_temporal": lpips_value,
+            "optical_flow_consistency_l1": flow_consistency,
+            "psnr_consecutive": psnr,
+            "ssim_consecutive": ssim,
         }
 
-    flow_model = flow_model.lower()
-    if flow_model == "raft_large":
-        weights = Raft_Large_Weights.DEFAULT
-        model = raft_large(weights=weights, progress=False)
-    else:
-        weights = Raft_Small_Weights.DEFAULT
-        model = raft_small(weights=weights, progress=False)
+    def evaluate(
+        self,
+        video: torch.Tensor,
+        *,
+        video_name: Optional[str] = None,
+        stage: Optional[str] = None,
+        fps: Optional[int] = None,
+        valid_frames: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        frames = normalize_video_for_metrics(video, valid_frames=valid_frames)
+        if frames.shape[0] < 2:
+            raise ValueError("Temporal metrics require at least two frames")
 
-    model = model.to(device).eval()
-    transforms = weights.transforms()
+        pair_metrics: List[Dict[str, float]] = []
+        for index in range(frames.shape[0] - 1):
+            metrics = self._compute_pair_metrics(frames[index], frames[index + 1])
+            pair_metrics.append({
+                "t": index,
+                "t_next": index + 1,
+                **metrics,
+            })
 
-    fb_values = []
-    photo_values = []
-    occ_values = []
-
-    with torch.no_grad():
-        for t in range(video_tchw.shape[0] - 1):
-            img_t = video_tchw[t : t + 1].to(device)
-            img_t1 = video_tchw[t + 1 : t + 2].to(device)
-
-            # Forward and backward flow
-            t_fwd, t1_fwd = transforms(img_t, img_t1)
-            flow_fwd = model(t_fwd, t1_fwd)[-1]
-
-            t1_bwd, t_bwd = transforms(img_t1, img_t)
-            flow_bwd = model(t1_bwd, t_bwd)[-1]
-
-            # Forward-backward consistency in frame t coordinates
-            flow_bwd_warped = _warp_tensor(flow_bwd, flow_fwd)
-            fb_error = torch.linalg.norm(flow_fwd + flow_bwd_warped, dim=1)
-
-            mag = torch.linalg.norm(flow_fwd, dim=1) + torch.linalg.norm(flow_bwd_warped, dim=1)
-            occluded = fb_error > (fb_alpha * mag + fb_beta)
-            valid = ~occluded
-            occ_ratio = float(occluded.float().mean().item())
-
-            if valid.any():
-                fb_values.append(float(fb_error[valid].mean().item()))
-
-                # Photometric warp error (lower is better)
-                img_t1_to_t = _warp_tensor(img_t1, flow_fwd)
-                photo = torch.abs(img_t1_to_t - img_t).mean(dim=1)
-                photo_values.append(float(photo[valid].mean().item()))
-            else:
-                fb_values.append(float(fb_error.mean().item()))
-                img_t1_to_t = _warp_tensor(img_t1, flow_fwd)
-                photo = torch.abs(img_t1_to_t - img_t).mean(dim=1)
-                photo_values.append(float(photo.mean().item()))
-
-            occ_values.append(occ_ratio)
-
-    if not fb_values:
         return {
-            "available": False,
-            "error": "Not enough frames for flow consistency metric.",
+            "video_name": video_name,
+            "stage": stage,
+            "num_frames": int(frames.shape[0]),
+            "num_pairs": int(frames.shape[0] - 1),
+            "fps": fps,
+            "summary": summarize_pair_metrics(pair_metrics),
+            "pairs": pair_metrics,
         }
 
-    return {
-        "available": True,
-        "flow_model": flow_model,
-        "fb_consistency_mean": float(sum(fb_values) / len(fb_values)),
-        "warp_l1_mean": float(sum(photo_values) / len(photo_values)),
-        "occlusion_ratio_mean": float(sum(occ_values) / len(occ_values)),
-        "pairs": len(fb_values),
-    }
+    @staticmethod
+    def format_summary(result: Dict[str, Any]) -> str:
+        summary = result["summary"]
+        video_name = result.get("video_name") or "video"
+        stage = result.get("stage") or "temporal_eval"
+        return (
+            f"[temporal_eval] {video_name} {stage} | pairs={summary['num_pairs']} | "
+            f"lpips={summary['lpips_temporal_mean']:.4f} | "
+            f"ofc_l1={summary['optical_flow_consistency_l1_mean']:.4f} | "
+            f"psnr={summary['psnr_consecutive_mean']:.2f} | "
+            f"ssim={summary['ssim_consecutive_mean']:.4f}"
+        )
+
+    @staticmethod
+    def write(result: Dict[str, Any], output_prefix: str) -> Dict[str, str]:
+        json_path = f"{output_prefix}_temporal_metrics.json"
+        csv_path = f"{output_prefix}_temporal_metrics_pairs.csv"
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
+
+        with open(json_path, "w", encoding="utf-8") as json_file:
+            json.dump(result, json_file, indent=2)
+
+        with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
+            fieldnames = [
+                "video_name",
+                "stage",
+                "t",
+                "t_next",
+                "lpips_temporal",
+                "optical_flow_consistency_l1",
+                "psnr_consecutive",
+                "ssim_consecutive",
+            ]
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for pair in result["pairs"]:
+                writer.writerow({
+                    "video_name": result.get("video_name"),
+                    "stage": result.get("stage"),
+                    **pair,
+                })
+
+        logger.info(TemporalMetricsEvaluator.format_summary(result))
+        return {"json": json_path, "csv": csv_path}
 
 
 def compute_temporal_metrics(
-    video_4d: torch.Tensor,
+    video: torch.Tensor,
     *,
     enable_lpips: bool = True,
     enable_flow: bool = True,
     lpips_net: str = "alex",
-    flow_model: str = "raft_small",
+    flow_model: str = "raft_large",
     max_frames: int = 65,
     eval_size: int = 256,
     fb_alpha: float = 0.01,
     fb_beta: float = 0.5,
-) -> Dict[str, object]:
-    """
-    Computes temporal quality metrics for generated videos.
+) -> Dict[str, Any]:
+    del enable_lpips, enable_flow, lpips_net, flow_model, fb_alpha, fb_beta
 
-    Returns a dictionary with metric values and any recoverable errors.
-    """
-    video_tchw = _to_tchw(video_4d.detach().cpu())
-    video_tchw = _sample_temporal(video_tchw, max_frames)
-    video_tchw = _resize_video(video_tchw, eval_size)
+    if video.ndim == 4:
+        video = video.unsqueeze(0)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if eval_size and eval_size > 0:
+        if video.ndim != 5:
+            raise ValueError(f"Expected [B,C,T,H,W], got {tuple(video.shape)}")
+        resized_frames = []
+        for t in range(video.shape[2]):
+            frame = video[:, :, t]
+            frame = F.interpolate(frame, size=(eval_size, eval_size), mode="area")
+            resized_frames.append(frame)
+        video = torch.stack(resized_frames, dim=2)
 
-    result: Dict[str, object] = {
-        "frames_evaluated": int(video_tchw.shape[0]),
-        "resolution_evaluated": [int(video_tchw.shape[2]), int(video_tchw.shape[3])],
-        "lpips_temporal": {"available": False, "error": "disabled"},
-        "optical_flow_consistency": {"available": False, "error": "disabled"},
-    }
-
-    if video_tchw.shape[0] < 2:
-        result["error"] = "Need at least 2 frames to evaluate temporal metrics."
-        return result
-
-    if enable_lpips:
-        result["lpips_temporal"] = _compute_lpips_temporal(
-            video_tchw=video_tchw,
-            device=device,
-            lpips_net=lpips_net,
-        )
-
-    if enable_flow:
-        result["optical_flow_consistency"] = _compute_flow_consistency(
-            video_tchw=video_tchw,
-            device=device,
-            flow_model=flow_model,
-            fb_alpha=fb_alpha,
-            fb_beta=fb_beta,
-        )
-
-    return result
+    evaluator = TemporalMetricsEvaluator()
+    valid_frames = min(max_frames, video.shape[2]) if max_frames and max_frames > 0 else None
+    result = evaluator.evaluate(
+        video,
+        video_name="sequence",
+        stage="temporal_eval",
+        valid_frames=valid_frames,
+    )
+    return result["summary"]
 
 
-def save_temporal_metrics_json(metrics: Dict[str, object], output_path: str) -> None:
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2, ensure_ascii=False)
+def save_temporal_metrics_json(payload: Dict[str, Any], output_path: str) -> None:
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as json_file:
+        json.dump(payload, json_file, indent=2)

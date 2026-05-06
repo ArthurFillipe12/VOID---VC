@@ -16,6 +16,7 @@ def get_experiment_config():
     config.matting_mode = "solo"  # "clean_bg" or "solo"
     config.save_path = "void_outputs_quadmask"
     config.skip_if_exists = True
+    config.temporal_eval = False
     config.validation = False
     config.skip_unet = False
     config.mask_to_vae = False
