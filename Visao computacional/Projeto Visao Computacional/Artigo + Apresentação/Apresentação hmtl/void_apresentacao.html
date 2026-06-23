@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VOID---VC | Apresentacao</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;
+      --surface:#ffffff;
+      --surface-2:#eef3f9;
+      --text:#1f2937;
+      --muted:#5b6677;
+      --primary:#0f4c81;      /* azul petroleo */
+      --primary-2:#1b6ca8;
+      --accent:#198754;       /* verde destaque */
+      --danger:#c0392b;
+      --line:#d9e2ee;
+      --shadow:0 10px 30px rgba(15,76,129,.08);
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0; padding:0; width:100%; height:100%;
+      font-family:"Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+      color:var(--text); background:var(--bg); overflow:hidden;
+    }
+
+    .deck{
+      width:100vw; height:100vh; display:flex;
+      transition:transform .45s ease;
+    }
+
+    .slide{
+      min-width:100vw; height:100vh; padding:42px 54px 26px;
+      display:flex; flex-direction:column; justify-content:space-between;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(27,108,168,.08), transparent 30%),
+        radial-gradient(circle at 95% 100%, rgba(25,135,84,.08), transparent 30%),
+        var(--bg);
+    }
+
+    .content{
+      max-width:1240px; width:100%; margin:0 auto;
+    }
+
+    .kicker{
+      color:var(--primary); letter-spacing:.12em; text-transform:uppercase;
+      font-weight:700; font-size:.78rem; margin-bottom:10px;
+    }
+
+    h1{
+      margin:0 0 10px; line-height:1.1;
+      font-size:3rem; color:var(--primary);
+    }
+
+    h2{
+      margin:0 0 16px; line-height:1.2;
+      font-size:2.05rem; color:var(--primary);
+      border-left:6px solid var(--primary);
+      padding-left:14px;
+    }
+
+    h3{
+      margin:0 0 10px; color:var(--primary-2); font-size:1.2rem;
+    }
+
+    p{
+      margin:0 0 10px; line-height:1.52; font-size:1.04rem; color:var(--text);
+    }
+
+    ul{
+      margin:8px 0 0 20px; padding:0;
+    }
+    li{
+      margin:8px 0; line-height:1.45; font-size:1rem;
+    }
+
+    .sub{
+      color:var(--muted); font-size:1rem;
+    }
+
+    .grid-2{
+      display:grid; grid-template-columns:1fr 1fr; gap:18px;
+    }
+
+    .grid-3{
+      display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    }
+
+    .card{
+      background:var(--surface); border:1px solid var(--line);
+      border-radius:14px; padding:16px 18px; box-shadow:var(--shadow);
+    }
+
+    .pill{
+      display:inline-block; font-size:.8rem; font-weight:700;
+      color:var(--primary); background:#e9f2fb; border:1px solid #d5e7f9;
+      padding:4px 8px; border-radius:999px; margin:0 8px 8px 0;
+    }
+
+    .metric{
+      display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px dashed var(--line); padding:8px 0;
+      font-size:1rem;
+    }
+    .metric:last-child{border-bottom:0}
+    .metric .value{font-weight:800; color:var(--primary)}
+
+    table{
+      width:100%; border-collapse:collapse; background:var(--surface);
+      border:1px solid var(--line); border-radius:12px; overflow:hidden;
+      box-shadow:var(--shadow);
+    }
+    th,td{
+      text-align:left; padding:12px 14px; border-bottom:1px solid var(--line);
+      font-size:.98rem;
+    }
+    th{background:#eaf3fc; color:var(--primary); font-weight:800;}
+    tr:last-child td{border-bottom:0}
+
+    .ok{color:var(--accent); font-weight:700}
+    .warn{color:var(--danger); font-weight:700}
+    .mono{font-family:Consolas, "Courier New", monospace; font-size:.94rem}
+
+    .flow{
+      display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:10px;
+      align-items:center;
+    }
+    .node{
+      background:var(--surface); border:1px solid var(--line); border-radius:10px;
+      padding:12px; text-align:center; font-weight:700; color:var(--primary);
+      box-shadow:var(--shadow);
+    }
+    .arrow{ text-align:center; font-size:1.6rem; color:var(--primary-2); }
+
+    .img-wrap{
+      background:var(--surface); border:1px solid var(--line);
+      border-radius:14px; padding:10px; box-shadow:var(--shadow);
+    }
+    .img-wrap img{
+      width:100%; height:410px; object-fit:contain; border-radius:8px; background:#f0f2f5;
+    }
+
+    .footer{
+      max-width:1240px; width:100%; margin:0 auto;
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:.86rem; color:var(--muted); border-top:1px solid var(--line);
+      padding-top:10px;
+    }
+
+    .progress{
+      position:fixed; left:0; top:0; height:5px; background:var(--primary);
+      width:0%; z-index:120; transition:width .3s ease;
+    }
+
+    .controls{
+      position:fixed; right:14px; bottom:14px; z-index:200;
+      display:flex; gap:8px;
+    }
+    .controls button{
+      border:1px solid var(--line); background:var(--surface); color:var(--primary);
+      border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;
+      box-shadow:var(--shadow);
+    }
+
+    .small{font-size:.88rem; color:var(--muted)}
+    .title-big{font-size:3.4rem}
+    .center{text-align:center}
+    .mt8{margin-top:8px}
+    .mt12{margin-top:12px}
+    .mt16{margin-top:16px}
+    .mt24{margin-top:24px}
+    .mt32{margin-top:32px}
+
+    @media (max-width: 980px){
+      .slide{padding:28px 20px 16px}
+      h1{font-size:2.2rem}
+      h2{font-size:1.55rem}
+      .grid-2,.grid-3{grid-template-columns:1fr}
+      .flow{grid-template-columns:1fr}
+      .arrow{transform:rotate(90deg)}
+      .img-wrap img{height:260px}
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <main class="deck" id="deck">
+
+    <!-- Slide 1 -->
+    <section class="slide">
+      <div class="content center">
+        <div class="kicker">Projeto Individual | UFRPE</div>
+        <h1 class="title-big">VOID---VC</h1>
+        <p style="font-size:1.3rem;color:var(--primary-2);font-weight:700;">
+          Avaliacao Temporal Automatizada para Remocao de Objetos em Video
+        </p>
+        <p class="mt24" style="font-size:1.1rem;">
+          Melhoria de implementacao sobre framework de estado da arte (VOID / Netflix Research)
+        </p>
+        <div class="mt24">
+          <span class="pill">Autor: Arthur Fillipe de Lira Aleixo</span>
+          <span class="pill">Disciplina: Visao Computacional</span>
+        </div>
+      </div>
+      <div class="footer"><span>UFRPE • Departamento de Computacao</span><span>Slide 1/12</span></div>
+    </section>
+
+    <!-- Slide 2 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Contexto e Motivacao</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Contexto da tarefa</h3>
+            <p>
+              Remocao de objetos em video exige plausibilidade espacial <b>e</b> coerencia temporal.
+              Nao basta um frame isolado ficar visualmente bom: o video precisa manter continuidade
+              para evitar artefatos inter-frame.
+            </p>
+            <ul>
+              <li>Problemas tipicos: flicker, jitter e deformacoes locais.</li>
+              <li>Avaliacao apenas visual gera alta variabilidade entre avaliadores.</li>
+              <li>Comparacoes entre experimentos ficam pouco auditaveis.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Motivacao academica</h3>
+            <p>
+              O projeto atende ao requisito da disciplina de propor melhoria significativa sobre
+              sistema publicado. A contribuicao foi metodologica: transformar avaliacao subjetiva em
+              evidencias quantitativas reproduziveis.
+            </p>
+            <div class="mt12 mono">
+              Pergunta central: "o ganho e real ou apenas impressao visual?"
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 2/12</span></div>
+    </section>
+
+    <!-- Slide 3 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Problema Identificado no Fluxo Original</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Lacuna metodologica</h3>
+            <p>
+              Ausencia de modulo padronizado para medir consistencia temporal no fluxo de inferencia.
+              Isso limita reproducao, comparabilidade e rastreabilidade dos resultados.
+            </p>
+            <ul>
+              <li>Dificuldade para comparar configuracoes do pipeline.</li>
+              <li>Baixa escalabilidade de avaliacao manual.</li>
+              <li>Risco de decisoes baseadas em vies perceptual.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Impacto no experimento</h3>
+            <ul>
+              <li>Sem serie numerica por frame/passo temporal.</li>
+              <li>Sem auditoria automatica em JSON/CSV.</li>
+              <li>Sem baseline quantitativa para trabalhos futuros.</li>
+            </ul>
+            <p class="mt12 sub">
+              Objetivo da melhoria: inserir camada quantitativa sem alterar o nucleo gerativo.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 3/12</span></div>
+    </section>
+
+    <!-- Slide 4 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Sistema Base: VOID (Estado da Arte)</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Por que VOID?</h3>
+            <p>
+              O VOID (Video Object and Interaction Deletion) aborda remocao de objetos e interacoes
+              associadas em video, indo alem de inpainting local por frame.
+            </p>
+            <ul>
+              <li>Foco em consistencia temporal e plausibilidade visual.</li>
+              <li>Pipeline robusto para cenarios dinamicos.</li>
+              <li>Backbone presente no projeto: <span class="mono">videox_fun/</span> (CogVideoX-Fun).</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Escopo desta proposta</h3>
+            <p>
+              Em vez de reimplementar o modelo completo, a estrategia foi melhorar a fase de avaliacao.
+              Assim, preserva-se compatibilidade com o pipeline original e reduz-se risco de regressao funcional.
+            </p>
+            <div class="mt12">
+              <span class="pill">Sem alterar o gerador</span>
+              <span class="pill">Com ganho metodologico</span>
+              <span class="pill">Com reproducao</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 4/12</span></div>
+    </section>
+
+    <!-- Slide 5 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Proposta de Melhoria Individual</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Contribuicao implementada</h3>
+            <ul>
+              <li>Modulo: <span class="mono">videox_fun/utils/temporal_metrics.py</span></li>
+              <li>Teste: <span class="mono">tests/test_temporal_metrics.py</span></li>
+              <li>Saidas: JSON (resumo + serie), CSV (pares de frames)</li>
+            </ul>
+            <p class="sub mt12">
+              A melhoria atua como instrumentacao quantitativa de baixo acoplamento.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Valor tecnico gerado</h3>
+            <div class="metric"><span>Comparabilidade entre execucoes</span><span class="ok">Aumenta</span></div>
+            <div class="metric"><span>Rastreabilidade dos resultados</span><span class="ok">Aumenta</span></div>
+            <div class="metric"><span>Dependencia de avaliacao subjetiva</span><span class="warn">Reduz</span></div>
+            <div class="metric"><span>Facilidade de auditoria</span><span class="ok">Aumenta</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 5/12</span></div>
+    </section>
+
+    <!-- Slide 6 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Metodologia e Pipeline da Solucao</h2>
+        <div class="card">
+          <div class="flow">
+            <div class="node">Entrada de video/tensor</div>
+            <div class="arrow">→</div>
+            <div class="node">Pares consecutivos (t, t+1)</div>
+            <div class="arrow">→</div>
+            <div class="node">Calculo de metricas</div>
+          </div>
+          <div class="flow mt12">
+            <div class="node">Agregacao estatistica</div>
+            <div class="arrow">→</div>
+            <div class="node">Exportacao JSON/CSV</div>
+            <div class="arrow">→</div>
+            <div class="node">Analise reproduzivel</div>
+          </div>
+        </div>
+        <div class="grid-2 mt16">
+          <div class="card">
+            <h3>Principios de projeto</h3>
+            <ul>
+              <li>Baixo acoplamento ao pipeline de inferencia.</li>
+              <li>Processamento temporal canonico e deterministico.</li>
+              <li>Formato de saida amigavel para analise posterior.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Criticos de qualidade</h3>
+            <ul>
+              <li>Calculo completo das 4 metricas por par.</li>
+              <li>Consistencia entre resumo agregado e serie temporal.</li>
+              <li>Persistencia de resultados para auditoria.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 6/12</span></div>
+    </section>
+
+    <!-- Slide 7 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Metricas Implementadas e Papel de Cada Uma</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metrica</th>
+              <th>Dimensao avaliada</th>
+              <th>Leitura pratica</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>LPIPS temporal</b></td>
+              <td>Distancia perceptual inter-frame</td>
+              <td>Detecta instabilidade visual (flicker perceptual)</td>
+            </tr>
+            <tr>
+              <td><b>Optical Flow Consistency (L1)</b></td>
+              <td>Coerencia de movimento</td>
+              <td>Avalia estabilidade dinamica via erro de fluxo</td>
+            </tr>
+            <tr>
+              <td><b>PSNR consecutivo</b></td>
+              <td>Similaridade pixelwise</td>
+              <td>Sinaliza degradacao energetica entre frames</td>
+            </tr>
+            <tr>
+              <td><b>SSIM consecutivo</b></td>
+              <td>Similaridade estrutural local</td>
+              <td>Mede preservacao de textura e estrutura</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small mt8">
+          Uso combinado reduz vies de interpretacao por metrica unica.
+        </p>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 7/12</span></div>
+    </section>
+
+    <!-- Slide 8 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Configuracao Experimental e Criterios de Sucesso</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Ambiente</h3>
+            <ul>
+              <li>Google Colab</li>
+              <li>GPU Tesla T4</li>
+              <li>~14.56 GB VRAM</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Dados de validacao</h3>
+            <ul>
+              <li>Video: <span class="mono">sample/lime/input_video.mp4</span></li>
+              <li>Recorte: 8 frames</li>
+              <li>Total: 7 pares consecutivos</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Criterios</h3>
+            <ul>
+              <li>Execucao sem erro</li>
+              <li>4 metricas em todos os pares</li>
+              <li>JSON/CSV gerados corretamente</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 8/12</span></div>
+    </section>
+
+    <!-- Slide 9 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Resultados Quantitativos (Resumo Agregado)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th>Valor medio</th>
+              <th>Interpretacao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>LPIPS temporal mean</td>
+              <td><b>0.018937</b></td>
+              <td>Baixa distancia perceptual entre frames</td>
+            </tr>
+            <tr>
+              <td>Optical Flow Consistency L1 mean</td>
+              <td><b>0.005620</b></td>
+              <td>Boa coerencia de movimento</td>
+            </tr>
+            <tr>
+              <td>PSNR consecutivo mean</td>
+              <td><b>28.631974</b></td>
+              <td>Estabilidade pixelwise consistente</td>
+            </tr>
+            <tr>
+              <td>SSIM consecutivo mean</td>
+              <td><b>0.925345</b></td>
+              <td>Alta preservacao estrutural</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small mt12">
+          Artefatos produzidos: <span class="mono">outputs/lime_input_video_temporal_metrics.json</span> e
+          <span class="mono">outputs/lime_input_video_temporal_metrics_pairs.csv</span>.
+        </p>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 9/12</span></div>
+    </section>
+
+    <!-- Slide 10 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Analise Temporal Detalhada por Par de Frames</h2>
+        <div class="img-wrap">
+          <!-- Coloque a imagem no mesmo diretorio com este nome -->
+          <img src="metricas.png" onerror="this.onerror=null;this.src='metricas_temporais.png';" alt="Curvas temporais de LPIPS, Flow L1, PSNR e SSIM por frame t">
+        </div>
+        <div class="grid-2 mt12">
+          <div class="card">
+            <h3>Leitura do comportamento</h3>
+            <ul>
+              <li>Picos locais indicam pares com maior dificuldade temporal.</li>
+              <li>Recuperacao subsequente sugere estabilidade global da sequencia.</li>
+              <li>Analise por curva evita mascaramento por media unica.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Valor metodologico</h3>
+            <p>
+              A serie por par permite diagnostico fino: identifica em qual transicao temporal
+              ocorrem degradacoes, facilitando comparacao entre configuracoes e orientando
+              ajustes de pipeline.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 10/12</span></div>
+    </section>
+
+    <!-- Slide 11 -->
+    <section class="slide">
+      <div class="content">
+        <h2>Limitacoes e Ameacas a Validade</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Infraestrutura</h3>
+            <p>
+              Em cenarios de inferencia pesada no Colab gratuito, houve encerramento por memoria
+              (<span class="mono warn">exit code 137</span>) com Tesla T4.
+            </p>
+            <ul>
+              <li>Limitou comparacoes amplas (ex.: passagens maiores).</li>
+              <li>Nao invalida a implementacao da melhoria.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Validade experimental</h3>
+            <ul>
+              <li><b>Interna:</b> recorte curto (8 frames) foi suficiente para validacao funcional.</li>
+              <li><b>Externa:</b> generalizacao exige mais videos e cenarios.</li>
+              <li><b>Construto:</b> metricas automaticas complementam, nao substituem, avaliacao humana.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 11/12</span></div>
+    </section>
+
+    <!-- Slide 12 -->
+    <section class="slide">
+      <div class="content center">
+        <h2 style="text-align:left">Conclusao e Proximos Passos</h2>
+        <div class="grid-2">
+          <div class="card" style="text-align:left">
+            <h3>Contribuicoes entregues</h3>
+            <ul>
+              <li>Modulo temporal funcional integrado ao VOID.</li>
+              <li>Avaliacao quantitativa reproduzivel (JSON/CSV).</li>
+              <li>Resultados consistentes para validacao funcional.</li>
+              <li>Documentacao de limitacoes reais de ambiente.</li>
+            </ul>
+          </div>
+          <div class="card" style="text-align:left">
+            <h3>Trabalhos futuros</h3>
+            <ul>
+              <li>Executar em GPU com maior VRAM (A100/L4).</li>
+              <li>Ampliar conjunto de videos e cenarios.</li>
+              <li>Comparacao sistematica entre configuracoes de pipeline.</li>
+              <li>Dashboard automatico para relatorio temporal.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="mt24" style="font-size:1.2rem;color:var(--primary);font-weight:800;">
+          Resultado final: avaliacao temporal passou de subjetiva para auditavel.
+        </p>
+        <p class="mt8" style="font-size:1.8rem;font-weight:800;color:var(--primary-2);">Obrigado!</p>
+      </div>
+      <div class="footer"><span>VOID---VC</span><span>Slide 12/12</span></div>
+    </section>
+
+  </main>
+
+  <div class="controls">
+    <button id="prev">Anterior</button>
+    <button id="next">Proximo</button>
+  </div>
+
+  <script>
+    const deck = document.getElementById("deck");
+    const progress = document.getElementById("progress");
+    const total = 12;
+    let idx = 0;
+
+    function render(){
+      deck.style.transform = `translateX(-${idx * 100}vw)`;
+      progress.style.width = `${((idx + 1) / total) * 100}%`;
+    }
+    function next(){ if(idx < total - 1){ idx++; render(); } }
+    function prev(){ if(idx > 0){ idx--; render(); } }
+
+    document.getElementById("next").addEventListener("click", next);
+    document.getElementById("prev").addEventListener("click", prev);
+
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "ArrowRight" || e.key === "PageDown") next();
+      if(e.key === "ArrowLeft"  || e.key === "PageUp") prev();
+      if(e.key.toLowerCase() === "home"){ idx = 0; render(); }
+      if(e.key.toLowerCase() === "end"){ idx = total - 1; render(); }
+    });
+
+    render();
+  </script>
+</body>
+</html>
