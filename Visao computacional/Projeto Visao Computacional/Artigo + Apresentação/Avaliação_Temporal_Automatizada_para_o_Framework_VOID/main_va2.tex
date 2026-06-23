@@ -186,17 +186,17 @@ A Tabela~\ref{tab:baseline} apresenta as métricas para 12 frames (11 pares) do 
 \toprule
 \textbf{Métrica} & \textbf{Média} & \textbf{Desvio} & \textbf{Mín} & \textbf{Máx} \\
 \midrule
-LPIPS temporal      & 0.01894 & 0.00505 & 0.01024 & 0.02638 \\
-Flow cons. L1       & 0.00562 & 0.00084 & 0.00440 & 0.00707 \\
-PSNR consec. (dB)   & 28.632  & 1.726   & 26.270  & 31.695  \\
-SSIM consec.        & 0.92535 & 0.02340 & 0.88417 & 0.95982 \\
+LPIPS temporal      & 0.0234 & -- & -- & -- \\
+Flow cons. L1       & 0.0055 & -- & -- & -- \\
+PSNR consec. (dB)   & 28.61  & -- & -- & -- \\
+SSIM consec.        & 0.9277 & -- & -- & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Os valores indicam comportamento temporal coerente: LPIPS médio $\approx 0.019$ (abaixo do limiar perceptual humano estimado em $0.05$--$0.10$), erro de fluxo médio $\approx 0.006$ (próximo de zero), PSNR médio $\approx 28.6$~dB (aceitável para vídeo de qualidade razoável~\cite{szeliski}) e SSIM médio $\approx 0.925$ (preservação estrutural consistente).
+Os valores indicam comportamento temporal coerente: LPIPS médio $\approx 0.023$ (abaixo do limiar perceptual humano estimado em $0.05$--$0.10$), erro de fluxo médio $\approx 0.006$ (próximo de zero), PSNR médio $\approx 28.6$~dB (aceitável para vídeo de qualidade razoável~\cite{szeliski}) e SSIM médio $\approx 0.928$ (preservação estrutural consistente).
 
-Nenhum par foi classificado como anomalia pelo detector de desvio padrão ($z > 2.0$), confirmando estabilidade temporal uniforme.
+O par de índice 10 foi classificado como anomalia pelo detector de desvio padrão ($z > 2.0$), indicando uma transição abrupta entre frames no final da janela analisada — comportamento esperado em vídeos com cenas de ação.
 
 \subsection{Análise de Sensibilidade — Degradações Sintéticas}
 
@@ -210,14 +210,14 @@ A Tabela~\ref{tab:degradacoes} apresenta os resultados para cada cenário de deg
 \toprule
 \textbf{Cenário} & \textbf{LPIPS} & \textbf{Flow L1} & \textbf{PSNR} & \textbf{SSIM} \\
 \midrule
-Sem degradação     & 0.01894 & 0.00562 & 28.632 & 0.92535 \\
-Ruído $\sigma$=0.02 & 0.02780 & 0.00841 & 24.103 & 0.88213 \\
-Ruído $\sigma$=0.05 & 0.05612 & 0.01432 & 19.872 & 0.76504 \\
-Ruído $\sigma$=0.10 & 0.10934 & 0.02781 & 14.221 & 0.54318 \\
-JPEG q=50          & 0.02341 & 0.00634 & 26.871 & 0.91204 \\
-JPEG q=20          & 0.04102 & 0.00912 & 23.415 & 0.84731 \\
-Blur k=3           & 0.02187 & 0.00598 & 27.341 & 0.90812 \\
-Blur k=7           & 0.03974 & 0.00843 & 24.812 & 0.85231 \\
+Sem degradação     & 0.0234 & 0.0055 & 28.61 & 0.9277 \\
+Ruído $\sigma$=0.02 & 0.0455 & 0.0236 & 26.51 & 0.6487 \\
+Ruído $\sigma$=0.05 & 0.0987 & 0.0532 & 21.88 & 0.3029 \\
+Ruído $\sigma$=0.10 & 0.1577 & 0.0991 & 16.76 & 0.1344 \\
+JPEG q=50          & 0.0336 & 0.0084 & 28.48 & 0.9127 \\
+JPEG q=20          & 0.0444 & 0.0092 & 28.38 & 0.9048 \\
+Blur k=3           & 0.0219 & 0.0050 & 29.96 & 0.9403 \\
+Blur k=7           & 0.0200 & 0.0053 & 31.58 & 0.9530 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -231,13 +231,13 @@ Blur k=7           & 0.03974 & 0.00843 & 24.812 & 0.85231 \\
 
 Os resultados confirmam a coerência das métricas implementadas:
 \begin{itemize}
-    \item \textbf{LPIPS} cresce monotonicamente com o nível de degradação — de $0.019$ (baseline) a $0.109$ (ruído $\sigma=0.10$), um aumento de $\approx$~5.8$\times$.
-    \item \textbf{Flow Consistency L1} também cresce com a degradação, refletindo inconsistência de movimento introduzida pelo ruído.
-    \item \textbf{PSNR} decresce monotonicamente — de $28.6$~dB a $14.2$~dB sob ruído máximo.
-    \item \textbf{SSIM} decresce de $0.925$ a $0.543$ no cenário mais severo.
+    \item \textbf{LPIPS} cresce monotonicamente com o nível de ruído — de $0.023$ (baseline) a $0.158$ (ruído $\sigma=0.10$), um aumento de $\approx$~6.7$\times$.
+    \item \textbf{Flow Consistency L1} cresce com ruído e compressão JPEG, refletindo inconsistência temporal introduzida; para blur, permanece abaixo do baseline ($0.005$ vs.\ $0.006$).
+    \item \textbf{PSNR} decresce monotonicamente com ruído — de $28.6$~dB a $16.8$~dB sob ruído máximo. Inversamente, blur \emph{aumenta} o PSNR consecutivo ($29.96$~dB e $31.58$~dB para k=3 e k=7), pois suaviza variações de alta frequência entre frames adjacentes.
+    \item \textbf{SSIM} também decresce sob ruído — de $0.928$ a $0.134$ no cenário mais severo — e \emph{aumenta} sob blur ($0.940$ e $0.953$), pelo mesmo motivo.
 \end{itemize}
 
-O ruído gaussiano é o tipo de degradação que mais impacta todas as métricas simultaneamente, enquanto o blur afeta principalmente LPIPS e SSIM com menor impacto no PSNR — consistente com o fato de que o blur preserva energia pixelwise mas destrói estrutura de alta frequência. A compressão JPEG tem comportamento intermediário.
+O ruído gaussiano é o tipo de degradação que mais degrada todas as métricas simultaneamente, especialmente SSIM. O blur gaussiano apresenta comportamento oposto ao esperado intuitivamente: por suavizar variações inter-frame, \emph{melhora} os indicadores baseados em similaridade (PSNR, SSIM) e fluxo óptico, embora reduza ligeiramente o LPIPS perceptual. Isso é fisicamente coerente: o blur elimina alta frequência temporal, tornando frames consecutivos mais parecidos entre si. A compressão JPEG tem impacto intermediário, afetando LPIPS e SSIM mas com menor efeito no PSNR consecutivo.
 
 \subsection{Análise Multi-Segmento}
 
