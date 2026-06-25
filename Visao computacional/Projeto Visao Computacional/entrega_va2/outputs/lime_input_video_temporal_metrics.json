@@ -1,0 +1,84 @@
+{
+  "video_name": "lime_input_video",
+  "stage": "module_validation",
+  "num_frames": 8,
+  "num_pairs": 7,
+  "fps": 12,
+  "summary": {
+    "lpips_temporal_mean": 0.018937284126877785,
+    "lpips_temporal_std": 0.005050792815553074,
+    "lpips_temporal_min": 0.010238805785775185,
+    "lpips_temporal_max": 0.02637701854109764,
+    "optical_flow_consistency_l1_mean": 0.005620031883674008,
+    "optical_flow_consistency_l1_std": 0.0008413183694414083,
+    "optical_flow_consistency_l1_min": 0.004399414174258709,
+    "optical_flow_consistency_l1_max": 0.007065273821353912,
+    "psnr_consecutive_mean": 28.631973538030188,
+    "psnr_consecutive_std": 1.7263237460654204,
+    "psnr_consecutive_min": 26.26974161787008,
+    "psnr_consecutive_max": 31.695204692166136,
+    "ssim_consecutive_mean": 0.9253453697477069,
+    "ssim_consecutive_std": 0.023402245107647324,
+    "ssim_consecutive_min": 0.8841662406921387,
+    "ssim_consecutive_max": 0.9598162174224854,
+    "num_pairs": 7
+  },
+  "pairs": [
+    {
+      "t": 0,
+      "t_next": 1,
+      "lpips_temporal": 0.01825055107474327,
+      "optical_flow_consistency_l1": 0.0052103083580732346,
+      "psnr_consecutive": 29.98540232137561,
+      "ssim_consecutive": 0.9506276249885559
+    },
+    {
+      "t": 1,
+      "t_next": 2,
+      "lpips_temporal": 0.02637701854109764,
+      "optical_flow_consistency_l1": 0.007065273821353912,
+      "psnr_consecutive": 26.763020683785467,
+      "ssim_consecutive": 0.9099028706550598
+    },
+    {
+      "t": 2,
+      "t_next": 3,
+      "lpips_temporal": 0.018869474530220032,
+      "optical_flow_consistency_l1": 0.005242445506155491,
+      "psnr_consecutive": 28.21346655227453,
+      "ssim_consecutive": 0.9205422401428223
+    },
+    {
+      "t": 3,
+      "t_next": 4,
+      "lpips_temporal": 0.024849925190210342,
+      "optical_flow_consistency_l1": 0.006594450678676367,
+      "psnr_consecutive": 26.26974161787008,
+      "ssim_consecutive": 0.8841662406921387
+    },
+    {
+      "t": 4,
+      "t_next": 5,
+      "lpips_temporal": 0.015483882278203964,
+      "optical_flow_consistency_l1": 0.004399414174258709,
+      "psnr_consecutive": 29.17905694118656,
+      "ssim_consecutive": 0.9310579299926758
+    },
+    {
+      "t": 5,
+      "t_next": 6,
+      "lpips_temporal": 0.018491331487894058,
+      "optical_flow_consistency_l1": 0.0055394358932971954,
+      "psnr_consecutive": 28.31792195755296,
+      "ssim_consecutive": 0.92130446434021
+    },
+    {
+      "t": 6,
+      "t_next": 7,
+      "lpips_temporal": 0.010238805785775185,
+      "optical_flow_consistency_l1": 0.0052888947539031506,
+      "psnr_consecutive": 31.695204692166136,
+      "ssim_consecutive": 0.9598162174224854
+    }
+  ]
+}
