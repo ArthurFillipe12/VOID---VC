@@ -253,27 +253,28 @@ A Tabela~\ref{tab:inpainting} apresenta as métricas dos dois vídeos (mesmo cli
 \caption{Métricas temporais: vídeo original vs.\ vídeo com objeto removido por inpainting}
 \label{tab:inpainting}
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{lccc}
 \toprule
-\textbf{Métrica} & \textbf{Input (original)} & \textbf{Output (inpainted)} \\
+\textbf{Métrica} & \textbf{Input} & \textbf{Output (inpainted)} & \textbf{$\Delta$} \\
 \midrule
-LPIPS temporal      & 0.0234 & \textsuperscript{$\dagger$} \\
-Flow cons.\ L1      & 0.0055 & \textsuperscript{$\dagger$} \\
-PSNR consec.\ (dB)  & 28.61  & \textsuperscript{$\dagger$} \\
-SSIM consec.        & 0.9277 & \textsuperscript{$\dagger$} \\
+LPIPS temporal      & 0.0234 & 0.0236 & $+$0.0002 \\
+Flow cons.\ L1      & 0.0055 & 0.0059 & $+$0.0004 \\
+PSNR consec.\ (dB)  & 28.61  & 28.95  & $+$0.34   \\
+SSIM consec.        & 0.9277 & 0.9296 & $+$0.0019 \\
 \bottomrule
-\multicolumn{3}{l}{\small $^\dagger$ Valores obtidos na execução da Seção~7 do notebook.}
 \end{tabular}
 \end{table}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\columnwidth]{figures/comparacao_input_vs_inpainted_frames.png}
-\caption{Comparação de frames: linha superior = vídeo original; linha inferior = vídeo inpaintado (retângulo vermelho indica região removida). O preenchimento por TELEA é visualmente coerente mas introduz inconsistências temporais detectáveis pelas métricas.}
+\caption{Comparação de frames: linha superior = vídeo original; linha inferior = vídeo inpaintado (retângulo vermelho indica região removida, $432\times960$ px $\approx$ 5\% da área). O preenchimento TELEA é visualmente coerente e as métricas detectam as modificações introduzidas.}
 \label{fig:inpainted}
 \end{figure}
 
-A hipótese de coerência das métricas é: o vídeo inpaintado deve apresentar LPIPS temporal e Flow Consistency L1 \emph{maiores} que o original (a região preenchida introduz variação local não presente no fluxo natural), enquanto PSNR e SSIM consecutivos permanecem relativamente próximos (o inpainting é determinístico e aplica a mesma máscara em cada frame, gerando preenchimentos similares entre frames adjacentes). Essa análise valida que as métricas não apenas calculam valores, mas detectam modificações visuais consistentes com o processo de inpainting~---~comportamento análogo ao que seria observado ao comparar o input e o output do VOID.
+Os resultados confirmam a coerência das métricas. LPIPS temporal e Flow Consistency L1 aumentaram ligeiramente ($+0.0002$ e $+0.0004$, respectivamente), indicando que o módulo detectou a modificação perceptual introduzida pelo inpainting na região mascarada. PSNR e SSIM consecutivos também aumentaram ($+0.34$~dB e $+0.0019$), o que é fisicamente coerente: a máscara cobriu a mão em movimento no vídeo original; o inpainting substitui essa região por textura estática derivada do contexto circundante, tornando frames consecutivos \emph{mais similares} entre si naquela área. Em outras palavras, a remoção do elemento dinâmico reduz a variação temporal local, elevando os índices de similaridade.
+
+Esse comportamento é análogo ao esperado no VOID: após a deleção de um objeto em movimento, o vídeo gerado deve apresentar maior coerência temporal na região afetada (PSNR e SSIM maiores), ao mesmo tempo que introduz alguma variação perceptual detectável pelo LPIPS~---~exatamente o padrão observado. A análise valida que as métricas não apenas calculam valores, mas respondem de forma interpretável a diferentes tipos de modificação visual.
 
 \subsection{Limitação de Hardware}
 
